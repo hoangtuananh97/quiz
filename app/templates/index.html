@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        form {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        input {
+            padding: 10px;
+            margin-right: 10px;
+            width: 200px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Quiz Management</h1>
+
+    <!-- Section to Create a Quiz -->
+    <section>
+        <h2>Create Quiz</h2>
+        <form id="create-quiz-form">
+            <input type="text" id="new-quiz-title" placeholder="Enter quiz title" required>
+            <button type="submit">Create Quiz</button>
+        </form>
+    </section>
+
+    <!-- Section to Join a Quiz -->
+    <section>
+        <h2>Join Quiz</h2>
+        <form id="join-quiz-form">
+            <input type="text" id="username" placeholder="Enter your username" required>
+            <input type="text" id="quiz-title" placeholder="Enter quiz title" required>
+            <button type="submit">Join Quiz</button>
+        </form>
+    </section>
+
+    <!-- Table to Display Participants -->
+    <section>
+        <h2>Participants</h2>
+        <table id="participants-table">
+            <thead>
+            <tr>
+                <th>Username</th>
+                <th>Quiz Title</th>
+                <th>Score</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </section>
+
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const createQuizForm = document.getElementById('create-quiz-form');
+        const joinQuizForm = document.getElementById('join-quiz-form');
+        const participantsTableBody = document.querySelector('#participants-table tbody');
+
+        let socket;
+
+        // Event listener for creating a quiz
+        createQuizForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const quizTitleInput = document.getElementById('new-quiz-title');
+            const quizTitle = quizTitleInput.value.trim();
+
+            if (!quizTitle) {
+                alert('Please enter a valid quiz title.');
+                return;
+            }
+
+            // Call the API to create a quiz
+            try {
+                const response = await fetch('/api/v1/quiz', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title: quizTitle })
+                });
+
+                if (response.ok) {
+                    alert(`Quiz "${quizTitle}" created successfully!`);
+                    quizTitleInput.value = '';  // Clear input
+                } else {
+                    const errorData = await response.json();
+                    alert(`Error: ${errorData.detail}`);
+                }
+            } catch (error) {
+                console.error('Error creating quiz:', error);
+                alert('Failed to create quiz. Try again later.');
+            }
+        });
+
+        // Event listener for joining a quiz
+        joinQuizForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const usernameInput = document.getElementById('username');
+            const quizTitleInput = document.getElementById('quiz-title');
+            const username = usernameInput.value.trim();
+            const quizTitle = quizTitleInput.value.trim();
+
+            if (!username || !quizTitle) {
+                alert('Please enter both username and quiz title.');
+                return;
+            }
+
+            // Clear previous table rows if any
+            participantsTableBody.innerHTML = '';
+
+            // Call the API to join the quiz
+            try {
+                const response = await fetch(`/api/v1/quiz/${quizTitle}/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: username })
+                });
+
+                if (response.ok) {
+                    // After successfully joining the quiz, establish WebSocket connection
+                    socket = new WebSocket(`ws://localhost:8000/ws/${quizTitle}/${username}`);
+
+                    // WebSocket on open
+                    socket.onopen = () => {
+                        console.log('WebSocket connection established.');
+                        fetchAndUpdateScores(quizTitle);
+                    };
+
+                    // WebSocket on message (handle participant updates)
+                    socket.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log("data ", data, data.event)
+                        if (data.event === 'participants_update') {
+                            // Fetch updated scores from the API
+                            fetchAndUpdateScores(quizTitle);
+                        }
+                    };
+
+                    // WebSocket on close
+                    socket.onclose = () => {
+                        console.log('WebSocket connection closed.');
+                    };
+
+                    // WebSocket on error
+                    socket.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                    };
+                } else {
+                    const errorData = await response.json();
+                    alert(`Error: ${errorData.detail}`);
+                }
+            } catch (error) {
+                console.error('Error joining quiz:', error);
+                alert('Failed to join quiz. Try again later.');
+            }
+        });
+
+        // Function to fetch updated scores from the API and update the participants table
+        async function fetchAndUpdateScores(quizTitle) {
+            try {
+                const response = await fetch(`/api/v1/quiz/${quizTitle}/scores`);
+                if (response.ok) {
+                    const participants = await response.json();
+                    updateParticipantsTable(participants);
+                } else {
+                    console.error('Error fetching participants:', response.status);
+                }
+            } catch (error) {
+                console.error('Error fetching participants:', error);
+            }
+        }
+
+        // Function to update the participants table
+        function updateParticipantsTable(participants) {
+            participantsTableBody.innerHTML = '';  // Clear existing table rows
+
+            participants.forEach(participant => {
+                const row = document.createElement('tr');
+                const usernameCell = document.createElement('td');
+                const quizTitleCell = document.createElement('td');
+                const scoreCell = document.createElement('td');
+
+                usernameCell.textContent = participant.username;
+                quizTitleCell.textContent = participant.quiz_title;
+                scoreCell.textContent = participant.score;
+
+                row.appendChild(usernameCell);
+                row.appendChild(quizTitleCell);
+                row.appendChild(scoreCell);
+
+                participantsTableBody.appendChild(row);
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
