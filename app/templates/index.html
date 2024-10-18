@@ -31,7 +31,7 @@
             text-align: center;
         }
 
-        input {
+        input, select {
             padding: 10px;
             margin-right: 10px;
             width: 200px;
@@ -68,6 +68,32 @@
             background-color: #f2f2f2;
         }
 
+        .question-section {
+            margin-top: 30px;
+        }
+
+        .question-section h2 {
+            text-align: center;
+        }
+
+        .answers-list {
+            list-style: none;
+            padding: 0;
+            text-align: left;
+        }
+
+        .answers-list li {
+            margin: 10px 0;
+        }
+        input[name=answer]{
+            width: auto;
+        }
+
+        .feedback {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -93,6 +119,15 @@
         </form>
     </section>
 
+    <!-- Section to Display Current Question and Answers -->
+    <section class="question-section" id="question-section" style="display: none;">
+        <h2>Current Question</h2>
+        <div id="question-text"></div>
+        <ul class="answers-list" id="answers-list"></ul>
+        <button id="submit-answer-btn" style="display: none;">Submit Answer</button>
+        <div class="feedback" id="feedback"></div>
+    </section>
+
     <!-- Table to Display Participants -->
     <section>
         <h2>Participants</h2>
@@ -108,49 +143,20 @@
             </tbody>
         </table>
     </section>
-
 </div>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const createQuizForm = document.getElementById('create-quiz-form');
         const joinQuizForm = document.getElementById('join-quiz-form');
         const participantsTableBody = document.querySelector('#participants-table tbody');
-
+        const questionSection = document.getElementById('question-section');
+        const questionText = document.getElementById('question-text');
+        const answersList = document.getElementById('answers-list');
+        const submitAnswerBtn = document.getElementById('submit-answer-btn');
+        const feedbackDiv = document.getElementById('feedback');
+        let selectedAnswerId = null;
+        let currentQuestionId = null;
         let socket;
-
-        // Event listener for creating a quiz
-        createQuizForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const quizTitleInput = document.getElementById('new-quiz-title');
-            const quizTitle = quizTitleInput.value.trim();
-
-            if (!quizTitle) {
-                alert('Please enter a valid quiz title.');
-                return;
-            }
-
-            // Call the API to create a quiz
-            try {
-                const response = await fetch('/api/v1/quiz', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ title: quizTitle })
-                });
-
-                if (response.ok) {
-                    alert(`Quiz "${quizTitle}" created successfully!`);
-                    quizTitleInput.value = '';  // Clear input
-                } else {
-                    const errorData = await response.json();
-                    alert(`Error: ${errorData.detail}`);
-                }
-            } catch (error) {
-                console.error('Error creating quiz:', error);
-                alert('Failed to create quiz. Try again later.');
-            }
-        });
 
         // Event listener for joining a quiz
         joinQuizForm.addEventListener('submit', async (event) => {
@@ -185,15 +191,15 @@
                     // WebSocket on open
                     socket.onopen = () => {
                         console.log('WebSocket connection established.');
+                        fetchCurrentQuestion(quizTitle);
                         fetchAndUpdateScores(quizTitle);
                     };
 
                     // WebSocket on message (handle participant updates)
                     socket.onmessage = (event) => {
                         const data = JSON.parse(event.data);
-                        console.log("data ", data, data.event)
+                        console.log("data", data)
                         if (data.event === 'participants_update') {
-                            // Fetch updated scores from the API
                             fetchAndUpdateScores(quizTitle);
                         }
                     };
@@ -214,6 +220,80 @@
             } catch (error) {
                 console.error('Error joining quiz:', error);
                 alert('Failed to join quiz. Try again later.');
+            }
+        });
+
+        // Fetch current question from the API
+        async function fetchCurrentQuestion(quizTitle) {
+            try {
+                const response = await fetch(`/api/v1/quiz/${quizTitle}/current_question`);
+                if (response.ok) {
+                    const questionData = await response.json();
+                    displayQuestion(questionData);
+                } else {
+                    console.error('Error fetching question:', response.status);
+                }
+            } catch (error) {
+                console.error('Error fetching question:', error);
+            }
+        }
+
+        // Display the current question and answers
+        function displayQuestion(questionData) {
+            questionSection.style.display = 'block';
+            questionText.textContent = questionData.question_text;
+            answersList.innerHTML = '';
+
+            questionData.answers.forEach(answer => {
+                const li = document.createElement('li');
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = 'answer';
+                input.value = answer.id;
+                input.addEventListener('change', () => {
+                    selectedAnswerId = answer.id;
+                    submitAnswerBtn.style.display = 'block';
+                });
+                li.appendChild(input);
+                li.appendChild(document.createTextNode(answer.answer_text));
+                answersList.appendChild(li);
+            });
+
+            currentQuestionId = questionData.question_id;
+        }
+
+        // Submit the selected answer
+        submitAnswerBtn.addEventListener('click', async () => {
+            if (!selectedAnswerId) {
+                alert('Please select an answer.');
+                return;
+            }
+
+            const username = document.getElementById('username').value.trim();
+            const quizTitle = document.getElementById('quiz-title').value.trim();
+
+            try {
+                const response = await fetch(`/api/v1/quiz/${quizTitle}/submit_answer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        question_id: currentQuestionId,
+                        answer_id: selectedAnswerId
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    feedbackDiv.textContent = result.correct ? 'Correct!' : 'Incorrect!';
+                    feedbackDiv.style.color = result.correct ? 'green' : 'red';
+                } else {
+                    console.error('Error submitting answer:', response.status);
+                }
+            } catch (error) {
+                console.error('Error submitting answer:', error);
             }
         });
 
@@ -255,6 +335,5 @@
         }
     });
 </script>
-
 </body>
 </html>

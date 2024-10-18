@@ -53,13 +53,12 @@ class QuizManager:
             raise HTTPException(status_code=404, detail="Quiz not found")
 
         user = get_user_by_username(user_data.username, db)
-        print("user ", user, user_data)
         if not user:
             join_quiz_service(title, user_data, db)
 
         redis_key = f"quiz:{quiz.title}:user:{user_data.username}:score"
         user_exists = self.redis_client.exists(redis_key)
-        print("user_exists ", redis_key, user_exists)
+
         if not user_exists:
             self.redis_client.set(f"quiz:{quiz.title}:user:{user_data.username}:score", 0)
 

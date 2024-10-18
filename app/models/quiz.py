@@ -9,3 +9,4 @@ class Quiz(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String, index=True, unique=True)
     users = relationship("User", back_populates="quiz")
+    questions = relationship("Question", back_populates="quiz", cascade="all, delete-orphan")

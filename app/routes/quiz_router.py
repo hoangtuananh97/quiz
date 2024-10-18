@@ -90,4 +90,3 @@ async def join_quiz(title: str, user_data: UserCreate, db: Session = Depends(get
 @router.post("/api/v1/quiz")
 async def create_quiz(quiz_data: QuizCreate, db: Session = Depends(get_db)):
     return create_quiz_service(quiz_data, db)
-
