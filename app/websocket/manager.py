@@ -65,16 +65,14 @@ class QuizManager:
             db.add(score_entry)
             db.commit()
 
-        redis_key = f"quiz:{quiz.title}:user:{user_data.username}:score"
-        user_exists = self.redis_client.exists(redis_key)
-
-        if not user_exists:
-            self.redis_client.set(f"quiz:{quiz.title}:user:{user_data.username}:score", 0)
+        redis_queries = RedisQueries()
+        redis_queries.add_username(quiz.title, user_data.username)
 
     async def broadcast_to_quiz(self, quiz_title: str, message: dict):
         """ Utility function to broadcast a message to all participants in a quiz. """
         participants = self.redis_queries.get_all_quiz_data(quiz_title)
         print("participants", participants)
+        print("self.connected_clients ", self.connected_clients)
         for participant in participants:
             print(participant['username'], self.connected_clients)
             if participant['username'] in self.connected_clients:

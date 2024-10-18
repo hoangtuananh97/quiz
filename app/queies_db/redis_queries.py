@@ -7,50 +7,23 @@ class RedisQueries:
     def __init__(self):
         self.redis_client = redis.from_url(settings.redis_url)
 
-    def update_score(self, quiz_title: str, username: str, new_score: int):
+    def set_key_score(self, quiz_title):
+        return f"quiz:{quiz_title}:scores"
+
+    def update_score(self, quiz_title: str, username: str, add_score: int):
         """Updates the user's score by adding the new score to the previous score and updating the list in Redis."""
         # Save the updated score back to Redis
-        self.redis_client.set(f"quiz:{quiz_title}:user:{username}:score", new_score)
+        self.redis_client.zincrby(self.set_key_score(quiz_title), add_score, username)
 
-    def find_keys_matching_pattern(self, pattern: str):
-        cursor = 0
-        matching_keys = []
-
-        while True:
-            # Scan through the keys using a pattern
-            cursor, keys = self.redis_client.scan(cursor, match=pattern)
-
-            # Append all matching keys
-            matching_keys.extend(keys)
-
-            # If cursor is 0, we are done scanning
-            if cursor == 0:
-                break
-
-        return matching_keys
-
-    def get_all_quiz_data(self, quiz_title: str):
+    def get_all_quiz_data(self, quiz_title: str, limit: int = 10):
         """Fetch all users and their scores for a given quiz from Redis."""
 
-        # Use SCAN to find all user score keys for the quiz
-        keys = self.find_keys_matching_pattern(f"quiz:{quiz_title}:user:*:score")
-        if not keys:
-            return []
+        top_users = self.redis_client.zrevrange(self.set_key_score(quiz_title), 0, limit - 1, withscores=True)
+        return [{"username": user, "quiz_title": quiz_title, "score": score} for user, score in top_users]
 
-        # Fetch all the scores from Redis
-        scores = self.redis_client.mget(*keys)
-        result = []
-
-        for key, score in zip(keys, scores):
-            # Extract username from the key (e.g., "quiz:GeneralKnowledge:user:alice:score")
-            key_parts = key.decode('utf-8').split(":")
-            username = key_parts[3]
-
-            # Prepare the final result with username, score, and quiz_title
-            result.append({
-                "username": username,
-                "score": int(score),
-                "quiz_title": quiz_title
-            })
-
-        return result
+    def add_username(self, quiz_title: str, username: str):
+        redis_key = self.set_key_score(quiz_title)
+        # Use ZSCORE to check if the user exists in the sorted set
+        exist = self.redis_client.zscore(redis_key, username)
+        if exist is None:
+            self.redis_client.zadd(self.set_key_score(quiz_title), {username: 0})

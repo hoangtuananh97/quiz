@@ -159,7 +159,6 @@
         let selectedAnswerId = null;
         let currentQuestionId = null;
         let socket;
-        let isWebSocketOpen = false;
 
         // Event listener for creating a quiz
         createQuizForm.addEventListener('submit', async (event) => {
@@ -231,7 +230,6 @@
 
                     // WebSocket on open
                     socket.onopen = () => {
-                        isWebSocketOpen = true;
                         console.log('WebSocket connection established.');
                         fetchCurrentQuestion(quizTitle);
                         fetchAndUpdateScores(quizTitle);
@@ -248,7 +246,6 @@
 
                     // WebSocket on close
                     socket.onclose = () => {
-                        isWebSocketOpen = false;
                         console.log('WebSocket connection closed.');
                     };
 
@@ -266,12 +263,8 @@
             }
         });
         function sendMessageToWebSocket(data) {
-            if (isWebSocketOpen) {
-                socket.send(JSON.stringify(data));
-                console.log('Message sent:', data);
-            } else {
-                console.warn('Attempted to send message after WebSocket was closed.');
-            }
+            socket.send(JSON.stringify(data));
+            console.log('Message sent:', data);
         }
         // Fetch current question from the API
         async function fetchCurrentQuestion(quizTitle) {
@@ -359,7 +352,6 @@
                 const response = await fetch(`/api/v1/quiz/${quizTitle}/scores`);
                 if (response.ok) {
                     const participants = await response.json();
-                    console.log("updateParticipantsTable", participants)
                     updateParticipantsTable(participants);
                 } else {
                     console.error('Error fetching participants:', response.status);

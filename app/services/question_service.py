@@ -64,15 +64,14 @@ def submit_answer_service(quiz_title: str, answer_submit: AnswerSubmitBase, db: 
     # Fetch the user's score for this quiz
     score_entry = db.query(Score).filter(Score.quiz_id == quiz.id, Score.user_id == user.id).first()
 
-    new_score = score_entry.score
-    new_score += 10
+    add_score = 10
     # Check if the answer is correct
     if selected_answer.is_correct:
-        score_entry.score = new_score
+        score_entry.score += add_score
         db.commit()
 
         redis_queries = RedisQueries()
-        redis_queries.update_score(quiz_title, answer_submit.username, new_score)
+        redis_queries.update_score(quiz_title, answer_submit.username, add_score)
 
     return {
         "correct": selected_answer.is_correct,
