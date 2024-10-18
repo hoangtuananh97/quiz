@@ -9,16 +9,8 @@ class RedisQueries:
 
     def update_score(self, quiz_title: str, username: str, new_score: int):
         """Updates the user's score by adding the new score to the previous score and updating the list in Redis."""
-
-        # Get the previous score from Redis, if it doesn't exist, start with 0
-        previous_score = self.redis_client.get(f"quiz:{quiz_title}:user:{username}:score")
-        previous_score = int(previous_score) if previous_score else 0
-
-        # Add the new score to the previous score
-        updated_score = previous_score + new_score
-
         # Save the updated score back to Redis
-        self.redis_client.set(f"quiz:{quiz_title}:user:{username}:score", updated_score)
+        self.redis_client.set(f"quiz:{quiz_title}:user:{username}:score", new_score)
 
     def find_keys_matching_pattern(self, pattern: str):
         cursor = 0

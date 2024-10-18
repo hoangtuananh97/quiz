@@ -154,10 +154,51 @@
         const answersList = document.getElementById('answers-list');
         const submitAnswerBtn = document.getElementById('submit-answer-btn');
         const feedbackDiv = document.getElementById('feedback');
+        const createQuizForm = document.getElementById('create-quiz-form');
+        const createQuizFeedback = document.getElementById('create-quiz-feedback');
         let selectedAnswerId = null;
         let currentQuestionId = null;
         let socket;
+        let isWebSocketOpen = false;
 
+        // Event listener for creating a quiz
+        createQuizForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevent form submission from refreshing the page
+
+            const quizTitleInput = document.getElementById('new-quiz-title');
+            const quizTitle = quizTitleInput.value.trim();
+
+            if (!quizTitle) {
+                alert('Please enter a valid quiz title.');
+                return;
+            }
+
+            // Call the API to create a quiz
+            try {
+                const response = await fetch('/api/v1/quiz', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title: quizTitle }) // Send the quiz title in the request body
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    createQuizFeedback.textContent = `Quiz "${result.title}" created successfully!`;
+                    createQuizFeedback.style.color = 'green';
+                    quizTitleInput.value = ''; // Clear the input field after success
+                } else {
+                    const errorData = await response.json();
+                    createQuizFeedback.textContent = `Error: ${errorData.detail}`;
+                    createQuizFeedback.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Error creating quiz:', error);
+                createQuizFeedback.textContent = 'Failed to create quiz. Try again later.';
+                createQuizFeedback.style.color = 'red';
+            }
+        });
         // Event listener for joining a quiz
         joinQuizForm.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -190,6 +231,7 @@
 
                     // WebSocket on open
                     socket.onopen = () => {
+                        isWebSocketOpen = true;
                         console.log('WebSocket connection established.');
                         fetchCurrentQuestion(quizTitle);
                         fetchAndUpdateScores(quizTitle);
@@ -206,6 +248,7 @@
 
                     // WebSocket on close
                     socket.onclose = () => {
+                        isWebSocketOpen = false;
                         console.log('WebSocket connection closed.');
                     };
 
@@ -222,7 +265,14 @@
                 alert('Failed to join quiz. Try again later.');
             }
         });
-
+        function sendMessageToWebSocket(data) {
+            if (isWebSocketOpen) {
+                socket.send(JSON.stringify(data));
+                console.log('Message sent:', data);
+            } else {
+                console.warn('Attempted to send message after WebSocket was closed.');
+            }
+        }
         // Fetch current question from the API
         async function fetchCurrentQuestion(quizTitle) {
             try {
@@ -289,6 +339,12 @@
                     const result = await response.json();
                     feedbackDiv.textContent = result.correct ? 'Correct!' : 'Incorrect!';
                     feedbackDiv.style.color = result.correct ? 'green' : 'red';
+
+                    sendMessageToWebSocket({
+                        event: 'participants_update',
+                        quiz_title: quizTitle,
+                    })
+
                 } else {
                     console.error('Error submitting answer:', response.status);
                 }
@@ -303,6 +359,7 @@
                 const response = await fetch(`/api/v1/quiz/${quizTitle}/scores`);
                 if (response.ok) {
                     const participants = await response.json();
+                    console.log("updateParticipantsTable", participants)
                     updateParticipantsTable(participants);
                 } else {
                     console.error('Error fetching participants:', response.status);

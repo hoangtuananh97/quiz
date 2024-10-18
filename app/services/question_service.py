@@ -61,13 +61,8 @@ def submit_answer_service(quiz_title: str, answer_submit: AnswerSubmitBase, db: 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Fetch or create the user's score for this quiz
+    # Fetch the user's score for this quiz
     score_entry = db.query(Score).filter(Score.quiz_id == quiz.id, Score.user_id == user.id).first()
-
-    if not score_entry:
-        score_entry = Score(user_id=user.id, quiz_id=quiz.id, score=0)
-        db.add(score_entry)
-        db.commit()
 
     new_score = score_entry.score
     new_score += 10

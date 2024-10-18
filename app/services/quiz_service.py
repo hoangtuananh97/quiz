@@ -15,7 +15,7 @@ def join_quiz_service(title: str, user_data: UserCreate, db: Session):
     user = User(username=user_data.username, quiz_id=quiz.id)
     db.add(user)
     db.commit()
-    return {"message": f"User {user.username} joined quiz {quiz.title}"}
+    return user
 
 
 def create_quiz_service(quiz_data: QuizCreate, db: Session):
