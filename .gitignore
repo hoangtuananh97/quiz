@@ -5,3 +5,4 @@ poetry.lock
 dev-link/
 venv/
 .idea/
+.env
