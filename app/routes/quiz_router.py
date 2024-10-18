@@ -31,12 +31,11 @@ async def websocket_endpoint(websocket: WebSocket, quiz_title: str, username: st
                 data = await websocket.receive_json()
                 print(f"Received data from user {username} in quiz {quiz_title} -> Data: {data}")
 
-                new_score = data.get("score")
                 message = {
-                    "event": "score_update",
+                    "event": "participants_update",
                     "username": username,
                     "quiz_id": quiz_title,
-                    "score": new_score
+                    "score": 0
                 }
                 await quiz_websocket.broadcast_to_quiz(quiz_title, message)
 

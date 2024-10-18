@@ -85,7 +85,8 @@
         .answers-list li {
             margin: 10px 0;
         }
-        input[name=answer]{
+
+        input[name=answer] {
             width: auto;
         }
 
@@ -160,6 +161,40 @@
         let currentQuestionId = null;
         let socket;
 
+        // Function to establish WebSocket connection
+        function establishWebSocketConnection(quizTitle, username) {
+            // Establish WebSocket connection
+            socket = new WebSocket(`ws://localhost:8000/ws/${quizTitle}/${username}`);
+
+            // WebSocket on open
+            socket.onopen = () => {
+                console.log('WebSocket connection established.');
+                fetchAndUpdateScores(quizTitle);
+                fetchCurrentQuestion(quizTitle);
+
+            };
+
+            // WebSocket on message (handle participant updates)
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log("WebSocket data received:", data);
+                if (data.event === 'participants_update') {
+                    console.log('Participants update received, fetching updated participants list...');
+                    fetchAndUpdateScores(quizTitle);
+                }
+            };
+
+            // WebSocket on close
+            socket.onclose = () => {
+                console.log('WebSocket connection closed.');
+            };
+
+            // WebSocket on error
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
         // Event listener for creating a quiz
         createQuizForm.addEventListener('submit', async (event) => {
             event.preventDefault(); // Prevent form submission from refreshing the page
@@ -179,7 +214,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ title: quizTitle }) // Send the quiz title in the request body
+                    body: JSON.stringify({title: quizTitle}) // Send the quiz title in the request body
                 });
 
                 if (response.ok) {
@@ -198,6 +233,7 @@
                 createQuizFeedback.style.color = 'red';
             }
         });
+
         // Event listener for joining a quiz
         joinQuizForm.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -214,6 +250,9 @@
             // Clear previous table rows if any
             participantsTableBody.innerHTML = '';
 
+            // Establish WebSocket connection before joining the quiz
+            establishWebSocketConnection(quizTitle, username);
+
             // Call the API to join the quiz
             try {
                 const response = await fetch(`/api/v1/quiz/${quizTitle}/join`, {
@@ -221,35 +260,15 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ username: username })
+                    body: JSON.stringify({username: username})
                 });
 
                 if (response.ok) {
-                    // After successfully joining the quiz, establish WebSocket connection
-                    socket = new WebSocket(`ws://localhost:8000/ws/${quizTitle}/${username}`);
-
-                    // WebSocket on open
-                    socket.onopen = () => {
-                        console.log('WebSocket connection established.');
-                        fetchCurrentQuestion(quizTitle);
-                        fetchAndUpdateScores(quizTitle);
-                    };
-
-                    // WebSocket on message (handle participant updates)
-                    socket.onmessage = (event) => {
-                        const data = JSON.parse(event.data);
-                        console.log("data", data)
-                        fetchAndUpdateScores(quizTitle);
-                    };
-                    // WebSocket on close
-                    socket.onclose = () => {
-                        console.log('WebSocket connection closed.');
-                    };
-
-                    // WebSocket on error
-                    socket.onerror = (error) => {
-                        console.error('WebSocket error:', error);
-                    };
+                    fetchCurrentQuestion(quizTitle);
+                    sendMessageToWebSocket({
+                        event: 'participants_update',
+                        quiz_title: quizTitle,
+                    });
                 } else {
                     const errorData = await response.json();
                     alert(`Error: ${errorData.detail}`);
@@ -259,10 +278,16 @@
                 alert('Failed to join quiz. Try again later.');
             }
         });
+
         function sendMessageToWebSocket(data) {
-            socket.send(JSON.stringify(data));
-            console.log('Message sent:', data);
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(data));
+                console.log('Message sent:', data);
+            } else {
+                console.error('WebSocket is not open. Cannot send message.');
+            }
         }
+
         // Fetch current question from the API
         async function fetchCurrentQuestion(quizTitle) {
             try {
@@ -333,7 +358,7 @@
                     sendMessageToWebSocket({
                         event: 'participants_update',
                         quiz_title: quizTitle,
-                    })
+                    });
 
                 } else {
                     console.error('Error submitting answer:', response.status);
@@ -380,6 +405,7 @@
             });
         }
     });
+
 </script>
 </body>
 </html>

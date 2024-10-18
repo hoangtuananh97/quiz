@@ -15,7 +15,7 @@ class RedisQueries:
         # Save the updated score back to Redis
         self.redis_client.zincrby(self.set_key_score(quiz_title), add_score, username)
 
-    def get_all_quiz_data(self, quiz_title: str, limit: int = 10):
+    def get_all_quiz_data(self, quiz_title: str, limit: int = 50):
         """Fetch all users and their scores for a given quiz from Redis."""
 
         top_users = self.redis_client.zrevrange(self.set_key_score(quiz_title), 0, limit - 1, withscores=True)
@@ -24,6 +24,6 @@ class RedisQueries:
     def add_username(self, quiz_title: str, username: str):
         redis_key = self.set_key_score(quiz_title)
         # Use ZSCORE to check if the user exists in the sorted set
-        exist = self.redis_client.zscore(redis_key, username)
-        if exist is None:
+        score = self.redis_client.zscore(redis_key, username)
+        if score is None:
             self.redis_client.zadd(self.set_key_score(quiz_title), {username: 0})
