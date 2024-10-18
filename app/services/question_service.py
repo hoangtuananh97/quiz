@@ -13,23 +13,21 @@ router = APIRouter()
 def get_current_question_service(quiz_title: str, db: Session):
     # Fetch the quiz based on the title
     quiz = db.query(Quiz).filter(Quiz.title == quiz_title).first()
-
+    answers = []
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
     # Get the current question of the quiz
     current_question = db.query(Question).filter(Question.quiz_id == quiz.id, Question.is_active == True).first()
 
-    if not current_question:
-        raise HTTPException(status_code=404, detail="No active question found for this quiz")
-
-    # Get the possible answers for the current question
-    answers = db.query(Answer).filter(Answer.question_id == current_question.id).all()
+    if current_question:
+        # Get the possible answers for the current question
+        answers = db.query(Answer).filter(Answer.question_id == current_question.id).all()
 
     # Prepare the response
     return {
-        "question_id": current_question.id,
-        "question_text": current_question.text,
+        "question_id": current_question.id if current_question else None,
+        "question_text": current_question.text if current_question else None,
         "answers": [
             {"id": answer.id, "answer_text": answer.text} for answer in answers
         ]

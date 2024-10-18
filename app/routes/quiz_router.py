@@ -31,53 +31,14 @@ async def websocket_endpoint(websocket: WebSocket, quiz_title: str, username: st
                 data = await websocket.receive_json()
                 print(f"Received data from user {username} in quiz {quiz_title} -> Data: {data}")
 
-                event_type = data.get("event")
-
-                if event_type == "score_update":
-                    new_score = data.get("score")
-                    if new_score is None:
-                        raise ValueError("Score missing in score_update event")
-
-                    print(f"Processing score_update for user: {username} with score: {new_score}")
-                    await quiz_websocket.update_score(quiz_title, username, new_score)
-
-                    # Prepare and broadcast message with updated score to all participants
-                    message = {
-                        "event": "score_update",
-                        "username": username,
-                        "quiz_id": quiz_title,
-                        "score": new_score
-                    }
-                    await quiz_websocket.broadcast_to_quiz(quiz_title, message)
-
-                elif event_type == "participants_update":
-                    message = {
-                        "event": "participants_update",
-                        "username": username,
-                        "quiz_id": quiz_title,
-                    }
-                    print(f"Processing participants_update")
-                    await quiz_websocket.broadcast_to_quiz(quiz_title, message)
-
-                elif event_type == "submit_answer":
-                    answer = data.get("answer")
-                    if answer is None:
-                        raise ValueError("Answer missing in submit_answer event")
-
-                    print(f"Processing submit_answer for user: {username} -> Answer: {answer}")
-
-                    # For now, we assume the answer is correct (you can implement real logic here)
-                    is_correct = True
-
-                    # Prepare a message with the answer result and broadcast to all participants
-                    message = {
-                        "event": "answer_result",
-                        "username": username,
-                        "quiz_id": quiz_title,
-                        "answer": answer,
-                        "is_correct": is_correct
-                    }
-                    await quiz_websocket.broadcast_to_quiz(quiz_title, message)
+                new_score = data.get("score")
+                message = {
+                    "event": "score_update",
+                    "username": username,
+                    "quiz_id": quiz_title,
+                    "score": new_score
+                }
+                await quiz_websocket.broadcast_to_quiz(quiz_title, message)
 
             except WebSocketDisconnect:
                 print(f"User {username} in quiz {quiz_title} has disconnected.")

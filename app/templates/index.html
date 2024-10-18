@@ -238,11 +238,9 @@
                     // WebSocket on message (handle participant updates)
                     socket.onmessage = (event) => {
                         const data = JSON.parse(event.data);
-                        if (data.event === 'participants_update') {
-                            fetchAndUpdateScores(quizTitle);
-                        }
+                        console.log("data", data)
+                        fetchAndUpdateScores(quizTitle);
                     };
-
                     // WebSocket on close
                     socket.onclose = () => {
                         console.log('WebSocket connection closed.');
