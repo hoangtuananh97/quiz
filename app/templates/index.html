@@ -238,7 +238,6 @@
                     // WebSocket on message (handle participant updates)
                     socket.onmessage = (event) => {
                         const data = JSON.parse(event.data);
-                        console.log("data", data)
                         if (data.event === 'participants_update') {
                             fetchAndUpdateScores(quizTitle);
                         }

@@ -1,7 +1,5 @@
-from typing import List
-
 import redis
-from fastapi import WebSocket, Depends, HTTPException
+from fastapi import WebSocket, HTTPException
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -71,9 +69,6 @@ class QuizManager:
     async def broadcast_to_quiz(self, quiz_title: str, message: dict):
         """ Utility function to broadcast a message to all participants in a quiz. """
         participants = self.redis_queries.get_all_quiz_data(quiz_title)
-        print("participants", participants)
-        print("self.connected_clients ", self.connected_clients)
         for participant in participants:
-            print(participant['username'], self.connected_clients)
             if participant['username'] in self.connected_clients:
                 await self.connected_clients[participant['username']].send_json(message)
