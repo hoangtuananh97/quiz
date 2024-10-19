@@ -72,6 +72,8 @@ To run the project, you'll need the following software installed:
 2. **Access the application** in your web browser:
    - Open your browser and go to `http://localhost:8000`.
 
+3. **Doc APIs**
+   -  Open your browser and go to `http://localhost:8000/docs`.
 ---
 
 ## Docker Deployment

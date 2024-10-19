@@ -7,7 +7,9 @@ from app.schema.user import UserCreate
 from app.db.connection import get_db
 from app.services.quiz_service import create_quiz_service, join_quiz_service
 from app.websocket.manager import QuizManager
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 quiz_websocket = QuizManager()
@@ -15,22 +17,19 @@ quiz_websocket = QuizManager()
 
 @router.websocket("/ws/{quiz_title}/{username}")
 async def websocket_endpoint(websocket: WebSocket, quiz_title: str, username: str):
-    print(f"WebSocket connection initiated for user: {username} in quiz: {quiz_title}")
-
+    logger.info(f"WebSocket connection initiated for user: {username} in quiz: {quiz_title}")
     try:
         # Accept the WebSocket connection
         await websocket.accept()
-        print(f"WebSocket connection accepted for user: {username}")
-
+        logger.info(f"WebSocket connection accepted for user: {username}")
         # Register the client connection (in-memory or Redis-based management)
-        await quiz_websocket.connect(websocket, username)
+        await quiz_websocket.connect(websocket, username, quiz_title)
 
         while True:
             try:
                 # Receive JSON data from the WebSocket
                 data = await websocket.receive_json()
-                print(f"Received data from user {username} in quiz {quiz_title} -> Data: {data}")
-
+                logger.info(f"Received data from user {username} in quiz {quiz_title} -> Data: {data}")
                 message = {
                     "event": "participants_update",
                     "username": username,
@@ -40,17 +39,17 @@ async def websocket_endpoint(websocket: WebSocket, quiz_title: str, username: st
                 await quiz_websocket.broadcast_to_quiz(quiz_title, message)
 
             except WebSocketDisconnect:
-                print(f"User {username} in quiz {quiz_title} has disconnected.")
-                await quiz_websocket.disconnect(username)
+                logger.error(f"User {username} in quiz {quiz_title} has disconnected.")
+                await quiz_websocket.disconnect(username, quiz_title)
                 break
 
             except Exception as e:
-                print(f"Error while processing message for user {username}: {e}")
+                logger.error(f"Error while processing message for user {username}: {e}")
                 await websocket.close(code=1000, reason="Error occurred during WebSocket message processing.")
                 break
 
     except Exception as e:
-        print(f"Error while handling WebSocket connection for user {username}: {e}")
+        logger.error(f"Error while handling WebSocket connection for user {username}: {e}")
         await websocket.close(code=1000, reason="WebSocket closed due to an unexpected error.")
 
 

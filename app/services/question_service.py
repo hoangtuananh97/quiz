@@ -1,11 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models import Quiz, Score, User
 from app.models.question import Question, Answer
 from app.queies_db.redis_queries import RedisQueries
 from app.schema.question import AnswerSubmitBase
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -16,21 +19,25 @@ def get_current_question_service(quiz_title: str, db: Session):
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    # Get the current question of the quiz
-    current_question = db.query(Question).filter(Question.quiz_id == quiz.id, Question.is_active == True).first()
+    try:
+        # Get the current question of the quiz
+        current_question = db.query(Question).filter(Question.quiz_id == quiz.id, Question.is_active == True).first()
 
-    if current_question:
-        # Get the possible answers for the current question
-        answers = db.query(Answer).filter(Answer.question_id == current_question.id).all()
+        if current_question:
+            # Get the possible answers for the current question
+            answers = db.query(Answer).filter(Answer.question_id == current_question.id).all()
 
-    # Prepare the response
-    return {
-        "question_id": current_question.id if current_question else None,
-        "question_text": current_question.text if current_question else None,
-        "answers": [
-            {"id": answer.id, "answer_text": answer.text} for answer in answers
-        ]
-    }
+        # Prepare the response
+        return {
+            "question_id": current_question.id if current_question else None,
+            "question_text": current_question.text if current_question else None,
+            "answers": [
+                {"id": answer.id, "answer_text": answer.text} for answer in answers
+            ]
+        }
+    except Exception as e:
+        logger.error(f"An error occurred while getting question: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while getting question.")
 
 
 def submit_answer_service(quiz_title: str, answer_submit: AnswerSubmitBase, db: Session):
@@ -47,7 +54,8 @@ def submit_answer_service(quiz_title: str, answer_submit: AnswerSubmitBase, db: 
         raise HTTPException(status_code=404, detail="Question not found")
 
     # Fetch the selected answer
-    selected_answer = db.query(Answer).filter(Answer.id == answer_submit.answer_id, Answer.question_id == question.id).first()
+    selected_answer = db.query(Answer).filter(Answer.id == answer_submit.answer_id,
+                                              Answer.question_id == question.id).first()
 
     if not selected_answer:
         raise HTTPException(status_code=404, detail="Answer not found")
@@ -58,19 +66,22 @@ def submit_answer_service(quiz_title: str, answer_submit: AnswerSubmitBase, db: 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Fetch the user's score for this quiz
-    score_entry = db.query(Score).filter(Score.quiz_id == quiz.id, Score.user_id == user.id).first()
+    try:
+        # Fetch the user's score for this quiz
+        score_entry = db.query(Score).filter(Score.quiz_id == quiz.id, Score.user_id == user.id).first()
 
-    add_score = 10
-    # Check if the answer is correct
-    if selected_answer.is_correct:
-        score_entry.score += add_score
-        db.commit()
+        # Check if the answer is correct
+        if selected_answer.is_correct:
+            score_entry.score += settings.score
+            db.commit()
 
-        redis_queries = RedisQueries()
-        redis_queries.update_score(quiz_title, answer_submit.username, add_score)
+            redis_queries = RedisQueries()
+            redis_queries.update_score(quiz_title, answer_submit.username, settings.score)
 
-    return {
-        "correct": selected_answer.is_correct,
-        "updated_score": score_entry.score
-    }
+        return {
+            "correct": selected_answer.is_correct,
+            "updated_score": score_entry.score
+        }
+    except Exception as e:
+        logger.error(f"An error occurred while submitting answer.: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while submitting answer.")

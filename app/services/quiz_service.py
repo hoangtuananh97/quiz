@@ -11,6 +11,9 @@ from app.queies_db.user_queries import get_user_by_username
 from app.schema.user import UserCreate
 from app.schema.quiz import QuizCreate
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def join_quiz_service(title: str, user_data: UserCreate, db: Session):
     quiz = get_quiz_by_title(title, db)
@@ -38,12 +41,16 @@ def join_quiz_service(title: str, user_data: UserCreate, db: Session):
     except SQLAlchemyError as e:
         # Handle exceptions and rollback if necessary
         db.rollback()
-        print(f"Database error: {e}")
+        logger.error(f"An error occurred while joining the quiz: {e}")
         raise HTTPException(status_code=500, detail="An error occurred while joining the quiz.")
 
 
 def create_quiz_service(quiz_data: QuizCreate, db: Session):
-    quiz = Quiz(title=quiz_data.title)
-    db.add(quiz)
-    db.commit()
-    return {"title": quiz.title}
+    try:
+        quiz = Quiz(title=quiz_data.title)
+        db.add(quiz)
+        db.commit()
+        return {"title": quiz.title}
+    except Exception as e:
+        logger.error(f"An error occurred while creating the quiz: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while creating the quiz.")
