@@ -1,7 +1,3 @@
-Here’s a suggested `README.md` template based on your instructions:
-
----
-
 # Quiz System
 
 ## Introduction
