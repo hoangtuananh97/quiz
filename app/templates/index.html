@@ -136,7 +136,7 @@
 
     <!-- Table to Display Participants -->
     <section>
-        <h2>Participants</h2>
+        <h2>Leaderboard Table</h2>
         <table id="participants-table">
             <thead>
             <tr>
@@ -186,7 +186,7 @@
             socket.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 console.log("WebSocket data received:", data);
-                if (data.event === 'participants_update') {
+                if (data.event === 'participants_update' || data.event === 'leaderboard_table') {
                     console.log('Participants update received, fetching updated participants list...');
                     fetchAndUpdateScores(quizTitle);
                 }
@@ -369,7 +369,7 @@
                     feedbackDiv.style.color = result.correct ? 'green' : 'red';
 
                     sendMessageToWebSocket({
-                        event: 'participants_update',
+                        event: 'leaderboard_table',
                         quiz_title: quizTitle,
                     });
 
