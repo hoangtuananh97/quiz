@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import Session
 
-from app.db.connection import get_db
 from app.models import Quiz, Score, User
 from app.models.question import Question, Answer
 from app.queies_db.redis_queries import RedisQueries

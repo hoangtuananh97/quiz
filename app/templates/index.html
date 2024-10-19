@@ -120,6 +120,11 @@
         </form>
     </section>
 
+    <!-- Display User Score -->
+    <section id="user-score-section" style="display: none;">
+        <h3>Your Current Score: <span id="user-score-label">0</span></h3>
+    </section>
+
     <!-- Section to Display Current Question and Answers -->
     <section class="question-section" id="question-section" style="display: none;">
         <h2>Current Question</h2>
@@ -157,6 +162,9 @@
         const feedbackDiv = document.getElementById('feedback');
         const createQuizForm = document.getElementById('create-quiz-form');
         const createQuizFeedback = document.getElementById('create-quiz-feedback');
+        const userScoreSection = document.getElementById('user-score-section');
+        const userScoreLabel = document.getElementById('user-score-label');
+        let usernameScore = null;
         let selectedAnswerId = null;
         let currentQuestionId = null;
         let socket;
@@ -181,6 +189,9 @@
                 if (data.event === 'participants_update') {
                     console.log('Participants update received, fetching updated participants list...');
                     fetchAndUpdateScores(quizTitle);
+                }
+                if (data.event === 'score_update'){
+                    userScoreLabel.innerHTML = data.score;
                 }
             };
 
@@ -241,6 +252,7 @@
             const quizTitleInput = document.getElementById('quiz-title');
             const username = usernameInput.value.trim();
             const quizTitle = quizTitleInput.value.trim();
+            usernameScore = usernameInput.value.trim();
 
             if (!username || !quizTitle) {
                 alert('Please enter both username and quiz title.');
@@ -264,6 +276,7 @@
                 });
 
                 if (response.ok) {
+                    userScoreSection.style.display = 'block';
                     fetchCurrentQuestion(quizTitle);
                     sendMessageToWebSocket({
                         event: 'participants_update',
@@ -388,6 +401,9 @@
             participantsTableBody.innerHTML = '';  // Clear existing table rows
 
             participants.forEach(participant => {
+                if (usernameScore === participant.username) {
+                    userScoreLabel.innerHTML = participant.score;
+                }
                 const row = document.createElement('tr');
                 const usernameCell = document.createElement('td');
                 const quizTitleCell = document.createElement('td');

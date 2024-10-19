@@ -19,7 +19,10 @@ class RedisQueries:
         """Fetch all users and their scores for a given quiz from Redis."""
 
         top_users = self.redis_client.zrevrange(self.set_key_score(quiz_title), 0, limit - 1, withscores=True)
-        return [{"username": user.decode('utf-8'), "quiz_title": quiz_title, "score": score} for user, score in top_users]
+        return [
+            {"username": user.decode('utf-8'), "quiz_title": quiz_title, "score": score}
+            for user, score in top_users
+        ]
 
     def add_username(self, quiz_title: str, username: str):
         redis_key = self.set_key_score(quiz_title)
