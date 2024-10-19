@@ -1,3 +1,4 @@
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
@@ -17,23 +18,28 @@ def join_quiz_service(title: str, user_data: UserCreate, db: Session):
         raise HTTPException(status_code=404, detail="Quiz not found")
 
     user = get_user_by_username(user_data.username, db)
-    if not user:
-        user = User(username=user_data.username, quiz_id=quiz.id)
-        db.add(user)
-        db.commit()
+    try:
+        if not user:
+            user = User(username=user_data.username, quiz_id=quiz.id)
+            db.add(user)
+            db.commit()
 
-    # Fetch or create the user's score for this quiz
-    score_entry = db.query(Score).filter(Score.quiz_id == quiz.id, Score.user_id == user.id).first()
+        # Fetch or create the user's score for this quiz
+        score_entry = db.query(Score).filter(Score.quiz_id == quiz.id, Score.user_id == user.id).first()
+        if not score_entry:
+            score_entry = Score(user_id=user.id, quiz_id=quiz.id, score=0)
+            db.add(score_entry)
+            db.commit()
 
-    if not score_entry:
-        score_entry = Score(user_id=user.id, quiz_id=quiz.id, score=0)
-        db.add(score_entry)
-        db.commit()
+        redis_queries = RedisQueries()
+        redis_queries.add_username(quiz.title, user_data.username)
 
-    redis_queries = RedisQueries()
-    redis_queries.add_username(quiz.title, user_data.username)
-
-    return user
+        return user
+    except SQLAlchemyError as e:
+        # Handle exceptions and rollback if necessary
+        db.rollback()
+        print(f"Database error: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while joining the quiz.")
 
 
 def create_quiz_service(quiz_data: QuizCreate, db: Session):
