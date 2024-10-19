@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     broker_url: str = "redis://localhost:6379/0"
     result_backend_url: str = "redis://localhost:6379/0"
+    max_client: int = 50
 
     class Config:
         env_file = ".env"

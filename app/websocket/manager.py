@@ -6,7 +6,7 @@ from app.queies_db.redis_queries import RedisQueries
 
 
 class QuizManager:
-    MAX_CLIENTS = 50
+    MAX_CLIENTS = settings.max_client
 
     def __init__(self):
         self.connected_clients = {}
