@@ -5,7 +5,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from app.schema.quiz import QuizCreate
 from app.schema.user import UserCreate
 from app.db.connection import get_db
-from app.services.quiz_service import create_quiz_service
+from app.services.quiz_service import create_quiz_service, join_quiz_service
 from app.websocket.manager import QuizManager
 
 router = APIRouter()
@@ -56,7 +56,7 @@ async def websocket_endpoint(websocket: WebSocket, quiz_title: str, username: st
 
 @router.post("/api/v1/quiz/{title}/join")
 async def join_quiz(title: str, user_data: UserCreate, db: Session = Depends(get_db)):
-    await quiz_websocket.join_quiz(title, user_data, db)
+    join_quiz_service(title, user_data, db)
     return {"status": "joined", "title": title}
 
 
