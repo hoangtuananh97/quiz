@@ -43,6 +43,7 @@
             color: white;
             border: none;
             cursor: pointer;
+            margin: 5px;
         }
 
         button:hover {
@@ -108,6 +109,7 @@
             <input type="text" id="new-quiz-title" placeholder="Enter quiz title" required>
             <button type="submit">Create Quiz</button>
         </form>
+        <div id="create-quiz-feedback" class="create-quiz-feedback"></div>
     </section>
 
     <!-- Section to Join a Quiz -->
@@ -190,7 +192,7 @@
                     console.log('Participants update received, fetching updated participants list...');
                     fetchAndUpdateScores(quizTitle);
                 }
-                if (data.event === 'score_update'){
+                if (data.event === 'score_update' && data.username === usernameScore){
                     userScoreLabel.innerHTML = data.score;
                 }
             };
@@ -276,6 +278,7 @@
                 });
 
                 if (response.ok) {
+                    feedbackDiv.style.display = 'none';
                     userScoreSection.style.display = 'block';
                     fetchCurrentQuestion(quizTitle);
                     sendMessageToWebSocket({
@@ -365,6 +368,7 @@
 
                 if (response.ok) {
                     const result = await response.json();
+                    feedbackDiv.style.display = 'block';
                     feedbackDiv.textContent = result.correct ? 'Correct!' : 'Incorrect!';
                     feedbackDiv.style.color = result.correct ? 'green' : 'red';
 
